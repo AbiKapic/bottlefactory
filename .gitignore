@@ -1,0 +1,17 @@
+[Bb]in/
+[Oo]bj/
+node_modules/
+dist/
+.vs/
+_Boot/
+_CompileInfo/
+_Libraries/
+*.tmc
+*.compileinfo
+*.tclrs
+*.bak
+*.user
+*.suo
+.env
+.env.*
+!.env.example

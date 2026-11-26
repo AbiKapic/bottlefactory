@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_CappingStation" Id="{74505c24-10da-499b-bd06-f359a59429bf}" SpecialFunc="None">
+    <Declaration><![CDATA[
+FUNCTION_BLOCK FB_CappingStation
+VAR_INPUT
+    bBottleReady : BOOL;
+    bStop : BOOL;
+END_VAR
+VAR_OUTPUT
+    bDone : BOOL;
+    nArmProgress : UDINT;
+END_VAR
+VAR
+    fbCycle : CNM_CycleManager.SimpleCycleManager;
+    fbArmTimer : TON;
+END_VAR
+VAR CONSTANT
+    STEP_CAP : DINT := 2;
+    ARM_DURATION : TIME := T#2S;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+fbCycle(execute := bBottleReady AND NOT bStop);
+fbArmTimer(IN := fbCycle.step.current = STEP_CAP AND bBottleReady AND NOT bStop,
+           PT := ARM_DURATION);
+
+bDone := FALSE;
+nArmProgress := 0;
+
+IF bBottleReady AND NOT bStop THEN
+    CASE fbCycle.step.current OF
+        CNM_ReturnTypes.DefaultSteps.STEP.INIT:
+            fbCycle.proceed();
+
+        STEP_CAP:
+            nArmProgress := DINT_TO_UDINT(TIME_TO_DINT(fbArmTimer.ET) * DINT#100
+                                          / TIME_TO_DINT(ARM_DURATION));
+            fbCycle.step.next := CNM_ReturnTypes.DefaultSteps.STEP.SUCCESS;
+            fbCycle.waitFor(value := fbArmTimer.Q);
+
+        CNM_ReturnTypes.DefaultSteps.STEP.SUCCESS:
+            nArmProgress := 100;
+            bDone := TRUE;
+    END_CASE;
+END_IF;
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

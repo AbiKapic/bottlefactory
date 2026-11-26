@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_CinnamonFillingStation" Id="{ced96e8d-2727-493c-a22e-4db0a8f211f5}" SpecialFunc="None">
+    <Declaration><![CDATA[
+FUNCTION_BLOCK FB_CinnamonFillingStation
+VAR_INPUT
+    bRunRequest : BOOL;
+    bStop : BOOL;
+    bBottlePresent : BOOL;
+END_VAR
+
+VAR_OUTPUT
+    bValveOpen : BOOL;
+    bBusy : BOOL;
+    bDone : BOOL;
+    nCompleted : UDINT;
+    nFillPercent : UDINT;
+END_VAR
+
+VAR
+    fbCycle : CNM_CycleManager.SimpleCycleManager;
+    fbTimer : TON;
+    bCounted : BOOL := FALSE;
+END_VAR
+
+VAR CONSTANT
+    STEP_FILL : DINT := 2;
+    FILL_DURATION : TIME := T#8S;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+(* Update the cycle manager once per PLC scan *)
+fbCycle(
+    execute := bRunRequest
+               AND bBottlePresent
+               AND NOT bStop
+);
+
+(* Filling timer *)
+fbTimer(
+    IN := fbCycle.step.current = STEP_FILL,
+    PT := FILL_DURATION
+);
+
+(* Default outputs *)
+bValveOpen := FALSE;
+bBusy := FALSE;
+bDone := FALSE;
+nFillPercent := 0;
+
+CASE fbCycle.step.current OF
+
+    CNM_ReturnTypes.DefaultSteps.STEP.INIT:
+        bCounted := FALSE;
+        fbCycle.proceed();
+
+    STEP_FILL:
+        bBusy := TRUE;
+        nFillPercent := DINT_TO_UDINT(TIME_TO_DINT(fbTimer.ET) * DINT#100 / TIME_TO_DINT(FILL_DURATION));
+        bValveOpen := NOT fbTimer.Q;
+
+        fbCycle.step.next :=
+            CNM_ReturnTypes.DefaultSteps.STEP.SUCCESS;
+
+        fbCycle.waitFor(value := fbTimer.Q);
+
+    CNM_ReturnTypes.DefaultSteps.STEP.SUCCESS:
+        bDone := TRUE;
+        nFillPercent := 100;
+
+        IF NOT bCounted THEN
+            nCompleted := nCompleted + 1;
+            bCounted := TRUE;
+        END_IF;
+
+END_CASE;
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

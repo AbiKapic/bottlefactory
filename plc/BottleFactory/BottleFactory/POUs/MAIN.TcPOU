@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="MAIN" Id="{03011555-79e9-416d-a1c1-9af2b4a2a102}" SpecialFunc="None">
+    <Declaration><![CDATA[
+PROGRAM MAIN
+VAR
+    bStart : BOOL := FALSE;
+    bStop : BOOL := FALSE;
+    bBottlePresent : BOOL := TRUE;
+
+    fbStation : FB_FillingStation;
+	fbCinnamon : FB_CinnamonFillingStation;
+	bCinnamonRun : BOOL := FALSE;
+	bCinnamonStop : BOOL := FALSE;
+    nConveyorPosition : UDINT;
+    nConveyorIndexBase : UDINT;
+    nTransferPhase : UDINT;
+    nPlaceProgress : UDINT;
+    bBottleCapped : BOOL;
+    fbInfeed : TON;
+    fbOutfeed : TON;
+    fbPlacement : TON;
+    fbCapping : FB_CappingStation;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+// 0: fill, 1: travel to capper, 2: cap, 3: pick and place, 4: bring next bottle to filler.
+fbInfeed(IN := nTransferPhase = 1 AND NOT bCinnamonStop, PT := T#2S);
+fbCapping(bBottleReady := nTransferPhase = 2, bStop := bCinnamonStop);
+fbPlacement(IN := nTransferPhase = 3 AND NOT bCinnamonStop, PT := T#3S);
+fbOutfeed(IN := nTransferPhase = 4 AND NOT bCinnamonStop, PT := T#2S);
+
+IF NOT bCinnamonStop THEN
+    CASE nTransferPhase OF
+        0: IF fbCinnamon.bDone THEN nTransferPhase := 1; END_IF;
+        1: IF fbInfeed.Q THEN nTransferPhase := 2; END_IF;
+        2: IF fbCapping.bDone THEN nTransferPhase := 3; END_IF;
+        3: IF fbPlacement.Q THEN nTransferPhase := 4; END_IF;
+        4:
+            IF fbOutfeed.Q THEN
+                nConveyorIndexBase := nConveyorIndexBase + UDINT#100;
+                nTransferPhase := 0;
+            END_IF;
+    END_CASE;
+
+    nPlaceProgress := 0;
+    nConveyorPosition := nConveyorIndexBase;
+    CASE nTransferPhase OF
+        1: nConveyorPosition := nConveyorIndexBase + DINT_TO_UDINT(TIME_TO_DINT(fbInfeed.ET) / DINT#40);
+        2: nConveyorPosition := nConveyorIndexBase + UDINT#50;
+        3:
+            nConveyorPosition := nConveyorIndexBase + UDINT#50;
+            nPlaceProgress := DINT_TO_UDINT(TIME_TO_DINT(fbPlacement.ET) / DINT#30);
+        4:
+            nConveyorPosition := nConveyorIndexBase + UDINT#50
+                + DINT_TO_UDINT(TIME_TO_DINT(fbOutfeed.ET) / DINT#40);
+            nPlaceProgress := 100;
+    END_CASE;
+END_IF;
+
+bBottlePresent := nTransferPhase = 0;
+bBottleCapped := nTransferPhase = 3;
+
+fbStation(
+    bStart := bStart,
+    bStop := bStop,
+    bBottlePresent := bBottlePresent
+);
+
+
+fbCinnamon(
+    bRunRequest := bCinnamonRun,
+    bStop := bCinnamonStop,
+    bBottlePresent := bBottlePresent
+);
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

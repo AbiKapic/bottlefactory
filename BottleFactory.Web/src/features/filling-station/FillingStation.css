@@ -1,0 +1,71 @@
+.fill-stream {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.fill-stream__jet {
+  stroke: #38bdf8;
+  stroke-width: 5;
+  opacity: 0.65;
+}
+
+.fill-stream__highlights {
+  stroke: #bae6fd;
+  stroke-width: 2;
+  stroke-dasharray: 4 10;
+  animation: fill-stream-flow 360ms linear infinite;
+}
+
+.fill-stream__ripple {
+  stroke: #7dd3fc;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fill-stream-ripple 720ms ease-out infinite;
+}
+
+@keyframes fill-stream-flow {
+  to { stroke-dashoffset: -14; }
+}
+
+@keyframes fill-stream-ripple {
+  from { transform: scale(0.4); opacity: 0.9; }
+  to { transform: scale(1.4); opacity: 0.15; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill-stream__highlights, .fill-stream__ripple {
+    animation: none;
+  }
+}
+
+.conveyor-bottle {
+  transition: transform 250ms linear, opacity 250ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conveyor-bottle {
+    transition: none;
+  }
+}
+
+
+
+.capping-head {
+  transition: transform 250ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capping-head {
+    transition: none;
+  }
+}
+
+.station-motion, .water-level {
+  transition: transform 250ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .station-motion, .water-level {
+    transition: none;
+  }
+}

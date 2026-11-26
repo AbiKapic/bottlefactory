@@ -1,0 +1,77 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_FillingStation" Id="{7f2c32a5-b6b9-4103-8506-c347f77464c8}" SpecialFunc="None">
+    <Declaration><![CDATA[
+FUNCTION_BLOCK FB_FillingStation
+VAR_INPUT
+    bStart : BOOL;
+    bStop : BOOL;
+    bBottlePresent : BOOL;
+END_VAR
+
+VAR_OUTPUT
+    bValveOpen : BOOL;
+    bBusy : BOOL;
+    bDone : BOOL;
+    nCompleted : UDINT;
+END_VAR
+
+VAR
+    fbTimer : TON;
+    fbStartEdge : R_TRIG;
+    nState : INT := 0;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+fbStartEdge(CLK := bStart);
+
+fbTimer(
+    IN := (nState = 10)
+          AND NOT bStop
+          AND bBottlePresent,
+    PT := T#3S
+);
+
+bValveOpen := FALSE;
+bBusy := FALSE;
+bDone := FALSE;
+
+CASE nState OF
+
+    0: // IDLE
+        IF fbStartEdge.Q
+           AND bBottlePresent
+           AND NOT bStop THEN
+            nState := 10;
+        END_IF;
+
+    10: // FILLING
+        IF bStop OR NOT bBottlePresent THEN
+            nState := 0;
+
+        ELSIF fbTimer.Q THEN
+            nCompleted := nCompleted + 1;
+            bDone := TRUE;
+            nState := 20;
+
+        ELSE
+            bValveOpen := TRUE;
+            bBusy := TRUE;
+        END_IF;
+
+    20: // COMPLETE
+        bDone := TRUE;
+
+        IF NOT bStart THEN
+            nState := 0;
+        END_IF;
+
+ELSE
+    nState := 0;
+
+END_CASE;
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
